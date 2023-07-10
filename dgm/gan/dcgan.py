@@ -5,12 +5,12 @@ from torch import nn
 from tqdm.auto import tqdm
 
 
-from dgm.gan.generator import *
-from dgm.gan.discriminator import *
+from dgm.gan.dcgan_generator import DCGAN_Generator, get_noise
+from dgm.gan.dcgan_discriminator import DCGAN_Discriminator
 
 from dgm.utils.visualization import show_tensor_images
 
-class GAN():
+class DCGAN():
 
     def __init__(self,
                  noise_dimension,
@@ -18,6 +18,8 @@ class GAN():
                  number_epochs,
                  batch_size,
                  learning_rate,
+                 beta_1,
+                 beta_2,
                  display_step,
                  test_generator = True,
                  device = 'mps'
@@ -39,14 +41,22 @@ class GAN():
         self.batch_size = batch_size
         self.lr = learning_rate
         self.device = device
-        self.generator = Generator(noise_dimension).to(device)
-        self.generator_optimizer = torch.optim.Adam(self.generator.parameters(), lr=self.lr)
-        self.discriminator = Discriminator().to(device)
-        self.discriminator_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=self.lr)
+        self.generator = DCGAN_Generator(noise_dimension).to(device)
+        self.generator_optimizer = torch.optim.Adam(self.generator.parameters(), lr=self.lr, betas=(beta_1, beta_2))
+        self.discriminator = DCGAN_Discriminator().to(device)
+        self.discriminator_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=self.lr, betas=(beta_1, beta_2))
         self.test_generator = test_generator
         self.real_data = None
         self.display_step =display_step
         pass
+
+    def initialize_weights(self, m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        if isinstance(m, nn.BatchNorm2d):
+            torch.nn.init.normal_(m.weight, 0.0, 0.02)
+            torch.nn.init.constant_(m.bias, 0)
+
 
     def get_discriminator_loss(self, real_data):
 
@@ -96,6 +106,10 @@ class GAN():
         return generator_loss
 
     def fit(self, dataloader):
+
+        self.generator = self.generator.apply(self.weights_init)
+        self.discriminator = self.discriminator.apply(self.weights_init)
+
         cur_step = 0
         mean_generator_loss = 0
         mean_discriminator_loss = 0
