@@ -1,18 +1,37 @@
-
 from functools import partial
 from einops import reduce
-
+from torch import Tensor
 import torch
 from torch import nn
 import torch.nn.functional as F
 
 class WeightStandardizedConv2d(nn.Conv2d):
     """
-    https://arxiv.org/abs/1903.10520
-    weight standardization purportedly works synergistically with group normalization
+    A class that extends nn.Conv2d to include weight standardization.
+
+    Weight standardization is a technique that can work synergistically with group normalization.
+    For more details, refer to the paper: https://arxiv.org/abs/1903.10520
+
+    Methods
+    -------
+    forward(x: Tensor) -> Tensor:
+        Performs the forward pass of the convolution operation with weight standardization.
     """
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Performs the forward pass of the convolution operation with weight standardization.
+
+        Parameters
+        ----------
+        x : Tensor
+            The input tensor.
+
+        Returns
+        -------
+        Tensor
+            The output tensor after applying the convolution operation with weight standardization.
+        """
         eps = 1e-5 if x.dtype == torch.float32 else 1e-3
 
         weight = self.weight
